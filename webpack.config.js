@@ -1,8 +1,12 @@
 // We are using node's native package 'path'
 // https://nodejs.org/api/path.html
 const path = require('path');
+var webpack = require('webpack');
+var CompressionPlugin = require('compression-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const ExtractTextPlugin = require('extract-text-webpack-plugin');
+
+var PROD = JSON.parse(process.env.PROD_ENV || '0');
 
 // Constant with our paths
 const paths = {
@@ -13,13 +17,39 @@ const paths = {
 
 // Webpack configuration
 module.exports = {
+  // devtool: 'source-map',
   entry: path.join(paths.JS, 'app.js'),
   output: {
     path: paths.DIST,
-    filename: 'app.bundle.js'
+    filename: 'bundle.min.js'
   },
   // index.html is used as a template in which it'll inject bundled app.
-  plugins: [
+  plugins: PROD ? [
+    new HtmlWebpackPlugin({
+      template: path.join(paths.SRC, 'index.html'),
+    }),
+    new ExtractTextPlugin('style.bundle.css'), // CSS will be extracted to this bundle file
+    new webpack.DefinePlugin({ // <-- key to reducing React's size
+      'process.env': {
+        'NODE_ENV': JSON.stringify('production')
+      }
+    }),
+    // new webpack.optimize.DedupePlugin(), //dedupe similar code 
+    new webpack.optimize.UglifyJsPlugin({
+      compress: { warnings: false },
+      comments: false,
+      // sourceMap: true,
+      minimize: false
+    }), //minify everything
+    new webpack.optimize.AggressiveMergingPlugin(), //Merge chunks
+    new CompressionPlugin({
+      asset: "[path].gz[query]",
+      algorithm: "gzip",
+      test: /\.js$|\.css$|\.html$/,
+      threshold: 10240,
+      minRatio: 0.8
+    })
+  ] : [ 
     new HtmlWebpackPlugin({
       template: path.join(paths.SRC, 'index.html'),
     }),
